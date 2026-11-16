@@ -4,8 +4,11 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
+import feign.FeignException;
 import store.account.AccountController;
 import store.account.AccountIn;
 import store.account.AccountOut;
@@ -38,9 +41,17 @@ public class AuthService {
     }
 
     public String login(String email, String password) {
-        final AccountOut account = accountController.login(
-            AccountIn.builder().email(email).password(password).build()
-        ).getBody();
+        final AccountOut account;
+        try {
+            // account hashes the password and compares it with the stored hash
+            account = accountController.login(
+                AccountIn.builder().email(email).password(password).build()
+            ).getBody();
+        } catch (FeignException.Unauthorized | FeignException.BadRequest e) {
+            throw new ResponseStatusException(
+                HttpStatus.UNAUTHORIZED, "Invalid credentials"
+            );
+        }
         return jwtService.generate(account, getDuration());
     }
 

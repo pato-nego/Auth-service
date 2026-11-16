@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -43,18 +44,16 @@ public class JwtService {
     }
 
     public String getId(String jwt) {
-        JwtParser parser = Jwts.parser().verifyWith(getKey()).build();
-        Claims claims = parser.parseSignedClaims(jwt).getPayload();
-        Date now = new Date();
-        if (claims.getNotBefore().after(now)) {
+        try {
+            JwtParser parser = Jwts.parser().verifyWith(getKey()).build();
+            // checks the signature, nbf and exp: a JwtException otherwise
+            // (malformed, bad signature, premature or expired), never a 500
+            Claims claims = parser.parseSignedClaims(jwt).getPayload();
+            return claims.getId();
+        } catch (JwtException e) {
             throw new ResponseStatusException(
-                HttpStatus.UNAUTHORIZED, "Token is not valid yet!");
+                HttpStatus.UNAUTHORIZED, "Invalid token");
         }
-        if (claims.getExpiration().before(now)) {
-            throw new ResponseStatusException(
-                HttpStatus.UNAUTHORIZED, "Token is expired!");
-        }
-        return claims.getId();        
     }
 
 }
