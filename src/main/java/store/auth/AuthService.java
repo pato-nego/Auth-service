@@ -29,15 +29,19 @@ public class AuthService {
     private Boolean httpOnly;
 
     public void create(Register register) {
-
-        accountController.create(
-            AccountIn.builder()
-                .name(register.name())
-                .email(register.email())
-                .password(register.password())
-                .build()   
-        );
-
+        try {
+            accountController.create(
+                AccountIn.builder()
+                    .name(register.name())
+                    .email(register.email())
+                    .password(register.password())
+                    .build()
+            );
+        } catch (FeignException.BadRequest e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid registration details", e);
+        } catch (FeignException.Conflict e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered", e);
+        }
     }
 
     public String login(String email, String password) {
@@ -70,7 +74,11 @@ public class AuthService {
     }
 
     public AccountOut me(String idAccount) {
-        return accountController.findById(idAccount).getBody();
+        try {
+            return accountController.findById(idAccount).getBody();
+        } catch (FeignException.NotFound e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found", e);
+        }
     }
 
 }
